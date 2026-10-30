@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FaiChap — Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="assets/img/icon.svg">
+<link rel="shortcut icon" href="assets/img/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;600;700;800&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/fr.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<link rel="stylesheet" href="assets/css/dashboard.css">
+</head>
+<body>
+
+<div id="app">
+
+  <aside id="sidebar">
+    <div class="sb-logo">
+      <img src="assets/img/logo-faichap.svg" alt="FaiChap" id="sb-logo-img"
+        style="height:32px;width:auto;object-fit:contain"
+        onerror="this.style.display='none';document.getElementById('sb-logo-fallback').style.display='flex'">
+      <div id="sb-logo-fallback" style="display:none;align-items:center;gap:10px">
+        <div class="sb-logo-icon">
+          <svg width="22" height="22" viewBox="0 0 48 48" fill="none">
+            <path d="M10 38 L24 10 L38 38" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="24" cy="32" r="4" fill="#fec200"/>
+          </svg>
+        </div>
+        <div>
+          <div class="sb-logo-text">Fai<span>Chap</span></div>
+          <div class="sb-logo-sub">Gestion livraisons</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-section-title">Principal</div>
+
+      <div class="nav-item active" data-view="dashboard">
+        <i class="fa-solid fa-chart-line"></i> Dashboard
+      </div>
+      <div class="nav-item" data-view="commandes">
+        <i class="fa-solid fa-motorcycle"></i> Commandes
+        <span class="nav-badge" id="badge-encours">0</span>
+      </div>
+      <div class="nav-item" data-view="depenses">
+        <i class="fa-solid fa-receipt"></i> Dépenses
+      </div>
+
+      <div class="nav-divider"></div>
+      <div class="sb-section-title">Analyse</div>
+
+      <div class="nav-item" data-view="statistiques">
+        <i class="fa-solid fa-chart-bar"></i> Statistiques
+      </div>
+      <div class="nav-item" data-view="clients">
+        <i class="fa-solid fa-users"></i> Clients
+      </div>
+      <div class="nav-item" data-view="rapport">
+        <i class="fa-solid fa-file-pdf"></i> Rapport PDF
+      </div>
+
+      <div class="nav-divider"></div>
+      <div class="sb-section-title">Configuration</div>
+
+      <div class="nav-item admin-only" data-view="parametres">
+        <i class="fa-solid fa-sliders"></i> Paramètres
+      </div>
+    </nav>
+
+    <div class="sb-user">
+      <div class="sb-avatar" id="user-avatar">?</div>
+      <div>
+        <div class="sb-user-name" id="user-name">Chargement...</div>
+        <div class="sb-user-role" id="user-role">—</div>
+      </div>
+      <button class="sb-logout" onclick="logout()" title="Déconnexion">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+    </div>
+  </aside>
+
+  <div id="mob-overlay" onclick="closeSidebar()"></div>
+
+  <div id="content">
+
+    <header id="header">
+      <div class="header-left">
+        <button class="menu-toggle" onclick="toggleSidebar()">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div>
+          <div class="header-page-title" id="page-title">Dashboard</div>
+        </div>
+        <span class="header-date" id="header-date"></span>
+      </div>
+      <div class="header-right">
+        <button class="header-btn btn-primary" id="header-cta" onclick="openModal('m-commande')">
+          <i class="fa-solid fa-plus"></i>
+          <span class="cta-text">Nouvelle course</span>
+        </button>
+      </div>
+    </header>
+
+    <div id="main">
+
+<div class="view active" id="view-dashboard">
+        <div class="dash-welcome">
+          <div>
+            <h1 class="dash-title" id="dash-greeting">Bonjour 👋</h1>
+            <p class="dash-subtitle" id="dash-date">Chargement...</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="text" class="finput finput-date" id="dash-date-picker"
+              style="width:150px;font-size:12px;padding:6px 10px;cursor:pointer"
+              placeholder="Choisir un jour">
+            <button class="header-btn btn-ghost" onclick="resetDashDate()"
+              id="dash-reset-btn" style="display:none;font-size:12px">
+              <i class="fa-solid fa-rotate-left"></i> Aujourd'hui
+            </button>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-card-accent blue"></div>
+            <div class="kpi-icon blue"><i class="fa-solid fa-motorcycle"></i></div>
+            <div class="kpi-label">Courses aujourd'hui</div>
+            <div class="kpi-value" id="kpi-courses-day">—</div>
+            <div class="kpi-sub" id="kpi-courses-sub">Chargement...</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-card-accent green"></div>
+            <div class="kpi-icon green"><i class="fa-solid fa-money-bill-wave"></i></div>
+            <div class="kpi-label">Revenus aujourd'hui</div>
+            <div class="kpi-value" id="kpi-rev-day">—</div>
+            <div class="kpi-sub" id="kpi-rev-sub">Chargement...</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-card-accent red"></div>
+            <div class="kpi-icon red"><i class="fa-solid fa-arrow-down"></i></div>
+            <div class="kpi-label">Dépenses du mois</div>
+            <div class="kpi-value" id="kpi-dep-month">—</div>
+            <div class="kpi-sub" id="kpi-dep-sub">Chargement...</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-card-accent yellow"></div>
+            <div class="kpi-icon yellow"><i class="fa-solid fa-scale-balanced"></i></div>
+            <div class="kpi-label">Solde caisse</div>
+            <div class="kpi-value" id="kpi-solde">—</div>
+            <div class="kpi-sub" id="kpi-solde-sub">Chargement...</div>
+            <div class="kpi-sub" id="kpi-report-sub" style="color:var(--info);margin-top:3px;display:none"></div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Revenus des 7 derniers jours</div>
+                <div class="chart-sub">En FCFA · courses livrées uniquement</div>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="chart-revenus"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Dépenses par catégorie</div>
+                <div class="chart-sub">Mois en cours</div>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="chart-depenses"></canvas></div>
+          </div>
+        </div>
+
+        <div class="bottom-grid">
+          <div class="sc">
+            <div class="sc-head">
+              <span class="sc-title">Courses récentes</span>
+              <div class="sc-actions">
+                <button class="header-btn btn-ghost btn-sm" onclick="navigate('commandes')">Voir tout</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Service</th>
+                    <th>Montant</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-courses">
+                  <tr><td colspan="4"><div class="empty"><i class="fa-solid fa-motorcycle"></i><p>Aucune course</p></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <div class="target-card" style="margin-bottom:16px">
+              <div class="target-row">
+                <div>
+                  <div class="target-label">Objectif du mois</div>
+                  <div class="target-val" id="target-ca">— FCFA</div>
+                </div>
+                <div style="text-align:right">
+                  <div class="target-label">Réalisé</div>
+                  <div class="target-val" id="target-real">— FCFA</div>
+                </div>
+              </div>
+              <div class="target-prog">
+                <div class="target-prog-fill" id="target-fill" style="width:0%"></div>
+              </div>
+              <div class="target-note" id="target-note">Calcul en cours...</div>
+            </div>
+
+            <div class="sc">
+              <div class="sc-head"><span class="sc-title">Performance livreurs — mois</span></div>
+              <div id="livreurs-perf"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sc admin-only" style="margin-top:16px">
+          <div class="sc-head">
+            <span class="sc-title">
+              <i class="fa-solid fa-chart-pie" style="color:var(--blue);margin-right:8px"></i> Projections & charges budgétées
+            </span>
+            <span style="font-size:11px;color:var(--text3);background:var(--blue-pale);padding:3px 9px;border-radius:99px">Estimation</span>
+          </div>
+          <div style="padding:16px 18px">
+            <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6">
+              Ces montants sont des <strong style="color:var(--text2)">projections budgétaires</strong> — ils ne reflètent pas nécessairement les décaissements réels du mois.
+            </p>
+            <div id="charges-list" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="view" id="view-commandes">
+        <div class="cmd-stats" id="cmd-stats-bar">
+          <div class="cmd-stat"><div class="cmd-stat-icon blue"><i class="fa-solid fa-motorcycle"></i></div><div><div class="cmd-stat-val" id="cstat-total">—</div><div class="cmd-stat-lbl">Total</div></div></div>
+          <div class="cmd-stat"><div class="cmd-stat-icon green"><i class="fa-solid fa-circle-check"></i></div><div><div class="cmd-stat-val" id="cstat-livrees">—</div><div class="cmd-stat-lbl">Livrées</div></div></div>
+          <div class="cmd-stat"><div class="cmd-stat-icon" style="background:rgba(59,130,246,.1);color:var(--info)"><i class="fa-solid fa-clock"></i></div><div><div class="cmd-stat-val" id="cstat-encours">—</div><div class="cmd-stat-lbl">En cours</div></div></div>
+          <div class="cmd-stat"><div class="cmd-stat-icon" style="background:rgba(239,68,68,.1);color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i></div><div><div class="cmd-stat-val" id="cstat-annulees">—</div><div class="cmd-stat-lbl">Annulées</div></div></div>
+          <div class="cmd-stat"><div class="cmd-stat-icon yellow"><i class="fa-solid fa-money-bill"></i></div><div><div class="cmd-stat-val" id="cstat-revenus">—</div><div class="cmd-stat-lbl">Revenus</div></div></div>
+        </div>
+
+        <div class="filters-bar" style="flex-wrap:nowrap;align-items:center">
+          <!-- Barre de recherche -->
+          <div class="search-wrap" style="flex:1;min-width:180px">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input class="search-input" id="cmd-search" placeholder="Rechercher client, adresse, zone..." oninput="filterCommandes()">
+          </div>
+
+          <!-- Bulle Date Début -->
+          <div class="date-bubble" title="Date de début">
+            <i class="fa-solid fa-calendar-days"></i>
+            <input type="text" class="finput-date" id="cmd-filter-date-from" placeholder="Début" readonly="readonly">
+          </div>
+
+          <!-- Bulle Date Fin -->
+          <div class="date-bubble" title="Date de fin">
+            <i class="fa-solid fa-calendar-days"></i>
+            <input type="text" class="finput-date" id="cmd-filter-date-to" placeholder="Fin" readonly="readonly">
+          </div>
+
+          <!-- Bouton Filtres + Panel flottant -->
+          <div class="smart-filters-wrap" id="smart-filters-wrap">
+            <button class="btn-smart-filter" id="btn-smart-filter" onclick="toggleSmartFilters()">
+              <i class="fa-solid fa-sliders"></i>
+              <span>Filtres</span>
+              <span class="filter-active-badge" id="cmd-filter-badge" style="display:none">0</span>
+            </button>
+            <div class="smart-filters-panel" id="smart-filters-panel">
+              <div class="sfp-header">
+                <div class="sfp-title"><i class="fa-solid fa-sliders"></i> Filtres avancés</div>
+                <button class="sfp-close" onclick="toggleSmartFilters()"><i class="fa-solid fa-xmark"></i></button>
+              </div>
+              <div class="sfp-body">
+                <div class="sfp-row">
+                  <label>Statut</label>
+                  <select class="filter-select" id="cmd-filter-statut" onchange="filterCommandes(); updateFilterBadge()">
+                    <option value="">Tous statuts</option>
+                    <option value="en_cours">En cours</option>
+                    <option value="livré">Livrées</option>
+                    <option value="annulé">Annulées</option>
+                    <option value="en_attente">En attente</option>
+                  </select>
+                </div>
+                <div class="sfp-row">
+                  <label>Livreur</label>
+                  <select class="filter-select" id="cmd-filter-livreur" onchange="filterCommandes(); updateFilterBadge()"><option value="">Tous les livreurs</option></select>
+                </div>
+                <div class="sfp-row">
+                  <label>Service</label>
+                  <select class="filter-select" id="cmd-filter-service" onchange="filterCommandes(); updateFilterBadge()"><option value="">Tous les services</option></select>
+                </div>
+              </div>
+              <div class="sfp-footer">
+                <button class="header-btn btn-ghost btn-sm" onclick="resetFilters()"><i class="fa-solid fa-rotate-left"></i> Réinitialiser tous les filtres</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sc">
+          <div class="sc-head">
+            <span class="sc-title">Liste des courses</span>
+            <div class="sc-actions"><span id="cmd-count-label" style="font-size:12px;color:var(--text3)"></span></div>
+          </div>
+          <div class="table-wrap">
+            <table id="cmd-table">
+              <thead><tr><th>Date / Heure</th><th>Client</th><th>Service</th><th>Trajet</th><th>Livreur</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead>
+              <tbody id="cmd-tbody"><tr><td colspan="8"><div class="empty"><i class="fa-solid fa-motorcycle"></i><p>Chargement...</p></div></td></tr></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="cmd-pagination" style="display:none">
+            <span id="pag-info"></span>
+            <div class="pag-btns" id="pag-btns"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-depenses">
+        <div class="dep-summary-bar" id="dep-summary">
+          <div class="dep-sum-item"><div class="dep-sum-label">Total du mois</div><div class="dep-sum-val" id="dep-total-mois" style="color:var(--red)">—</div></div><div class="dep-sum-sep"></div>
+          <div class="dep-sum-item"><div class="dep-sum-label">Nombre de dépenses</div><div class="dep-sum-val" id="dep-nb-mois">—</div></div><div class="dep-sum-sep"></div>
+          <div class="dep-sum-item"><div class="dep-sum-label">Plus grosse dépense</div><div class="dep-sum-val" id="dep-max-mois" style="color:var(--text2)">—</div></div><div class="dep-sum-sep"></div>
+          <div class="dep-sum-item"><div class="dep-sum-label">Catégorie principale</div><div class="dep-sum-val" id="dep-cat-top" style="font-size:13px;color:var(--text2)">—</div></div>
+          <div style="display:flex;gap:8px;margin-left:auto;align-items:center;flex-wrap:wrap">
+            <select class="filter-select" id="dep-filter-mois" onchange="loadDepenses()" style="min-width:120px"></select>
+            <select class="filter-select" id="dep-filter-annee" onchange="loadDepenses()" style="min-width:80px"></select>
+          </div>
+        </div>
+
+        <div class="dep-cat-grid" id="dep-cat-grid"></div>
+
+        <div class="filters-bar">
+          <div class="search-wrap"><i class="fa-solid fa-magnifying-glass"></i><input class="search-input" id="dep-search" placeholder="Rechercher description..." oninput="filterDepenses()"></div>
+          <select class="filter-select" id="dep-filter-cat" onchange="filterDepenses()"><option value="">Toutes catégories</option></select>
+          <button class="header-btn btn-ghost btn-sm" onclick="resetDepFilters()"><i class="fa-solid fa-rotate-left"></i> Réinitialiser</button>
+        </div>
+
+        <div class="sc">
+          <div class="sc-head"><span class="sc-title">Liste des dépenses</span><span id="dep-count-label" style="font-size:12px;color:var(--text3)"></span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Catégorie</th><th>Description</th><th>Responsable</th><th>Prestataire</th><th>Montant</th><th>Actions</th></tr></thead>
+              <tbody id="dep-tbody"><tr><td colspan="7"><div class="empty"><i class="fa-solid fa-receipt"></i><p>Chargement...</p></div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-statistiques">
+        <div class="dep-summary-bar" style="margin-bottom:16px;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px">
+            <div style="font-family:var(--font-h);font-size:15px;font-weight:700">Analyse financière</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">Performances par période</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto">
+            <select class="filter-select" id="stat-filter-mois" onchange="loadStats()" style="min-width:120px"></select>
+            <select class="filter-select" id="stat-filter-annee" onchange="loadStats()" style="min-width:80px"></select>
+            <div class="tabbar" style="margin-bottom:0">
+              <button class="tabbtn active" data-stat-period="mois" onclick="toggleStatPeriod('mois')">Mois</button>
+              <button class="tabbtn" data-stat-period="annee" onclick="toggleStatPeriod('annee')">Année</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="stat-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px"></div>
+
+        <div class="charts-grid" style="margin-bottom:16px">
+          <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Revenus par service</div></div></div><div class="chart-wrap"><canvas id="chart-stat-services"></canvas></div></div>
+          <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Dépenses par catégorie</div></div></div><div class="chart-wrap"><canvas id="chart-stat-depenses"></canvas></div></div>
+        </div>
+
+        <div class="chart-card" style="margin-bottom:16px"><div class="chart-header"><div><div class="chart-title" id="stat-evol-title">Évolution</div></div></div><div style="position:relative;height:240px"><canvas id="chart-stat-evol"></canvas></div></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="sc"><div class="sc-head"><span class="sc-title">Performance livreurs</span></div><div class="table-wrap"><table><thead><tr><th>Livreur</th><th>Courses</th><th>Livrées</th><th>Revenus</th><th>Part livreur</th></tr></thead><tbody id="stat-livreurs-tbody"></tbody></table></div></div>
+          <div class="sc"><div class="sc-head"><span class="sc-title">Analyse par service</span></div><div class="table-wrap"><table><thead><tr><th>Service</th><th>Courses</th><th>Revenus</th><th>Moy/course</th></tr></thead><tbody id="stat-services-tbody"></tbody></table></div></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-clients">
+        <div class="dep-summary-bar" style="margin-bottom:16px">
+          <div class="dep-sum-item"><div class="dep-sum-label">Clients uniques</div><div class="dep-sum-val" id="cli-nb" style="color:var(--blue)">—</div></div><div class="dep-sum-sep"></div>
+          <div class="dep-sum-item"><div class="dep-sum-label">CA clients</div><div class="dep-sum-val" id="cli-ca" style="color:var(--success)">—</div></div><div class="dep-sum-sep"></div>
+          <div class="dep-sum-item"><div class="dep-sum-label">Meilleur client</div><div class="dep-sum-val" id="cli-top" style="font-size:14px;color:var(--text2)">—</div></div><div class="dep-sum-sep"></div>
+          <div class="dep-sum-item"><div class="dep-sum-label">Moy. courses / client</div><div class="dep-sum-val" id="cli-moy">—</div></div>
+        </div>
+        <div class="filters-bar">
+          <div class="search-wrap"><i class="fa-solid fa-magnifying-glass"></i><input class="search-input" id="cli-search" placeholder="Rechercher..." oninput="filterClients()"></div>
+          <select class="filter-select" id="cli-sort" onchange="filterClients()" style="min-width:170px"><option value="courses">Trier: Plus de courses</option><option value="ca">Trier: CA</option><option value="recent">Trier: Récent</option><option value="nom">Trier: Nom</option></select>
+        </div>
+        <div class="sc"><div class="sc-head"><span class="sc-title">Répertoire clients</span><span id="cli-count" style="font-size:12px;color:var(--text3)"></span></div><div class="table-wrap"><table><thead><tr><th>Client</th><th>Téléphone</th><th>Courses</th><th>Livrées</th><th>CA total</th><th>Dernière course</th><th>Service favori</th></tr></thead><tbody id="cli-tbody"></tbody></table></div></div>
+      </div>
+
+      <div class="view" id="view-rapport">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+          <div>
+            <div class="sc"><div class="sc-head"><span class="sc-title"><i class="fa-solid fa-sliders" style="color:var(--blue);margin-right:8px"></i>Configuration</span></div>
+              <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+                <div class="fg"><label class="flabel">Période</label><div style="display:flex;gap:8px"><select class="fselect" id="rpt-mois" style="flex:1"></select><select class="fselect" id="rpt-annee" style="width:90px"></select></div></div>
+                <div class="fg">
+                  <label class="flabel">Sections à inclure</label>
+                  <div style="display:flex;flex-direction:column;gap:8px;margin-top:2px" id="rpt-sections">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="rpt-s-resume" checked style="accent-color:var(--blue)"> Résumé financier</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="rpt-s-services" checked style="accent-color:var(--blue)"> Analyse services</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="rpt-s-depenses" checked style="accent-color:var(--blue)"> Analyse dépenses</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="rpt-s-livreurs" checked style="accent-color:var(--blue)"> Perf. livreurs</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="rpt-s-commandes" style="accent-color:var(--blue)"> Détail courses</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="rpt-s-observations" checked style="accent-color:var(--blue)"> Observations</label>
+                  </div>
+                </div>
+                <div class="fg"><label class="flabel">Note de conclusion (optionnel)</label><textarea class="ftextarea" id="rpt-note"></textarea></div>
+                <button class="header-btn btn-primary" style="width:100%;justify-content:center" onclick="genererRapportPDF()"><i class="fa-solid fa-file-pdf"></i> Générer le rapport PDF</button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="sc"><div class="sc-head"><span class="sc-title"><i class="fa-solid fa-eye" style="color:var(--blue);margin-right:8px"></i>Aperçu</span></div><div style="padding:20px" id="rpt-preview"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-parametres">
+        <div id="param-admin-note" style="display:none;background:rgba(195,22,28,0.08);border:1px solid rgba(195,22,28,0.2);border-radius:var(--r);padding:12px 16px;margin-bottom:18px;font-size:13px;color:var(--red)"><i class="fa-solid fa-lock" style="margin-right:8px"></i> Réservé aux administrateurs.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start" id="param-grid">
+          <div class="sc">
+            <div class="sc-head"><span class="sc-title"><i class="fa-solid fa-percent" style="color:var(--blue);margin-right:8px"></i>Répartition</span></div>
+            <div style="padding:20px">
+              <div class="fg"><label class="flabel">Livreur (%)</label><div style="display:flex;align-items:center;gap:12px"><input type="range" id="p-pct-l" min="0" max="80" step="5" style="flex:1;accent-color:var(--blue)" oninput="updatePctPreview()"><span id="p-pct-l-val" style="font-family:var(--font-h);font-size:18px;font-weight:800;color:var(--blue);min-width:44px;text-align:right"></span></div></div>
+              <div class="fg"><label class="flabel">Carburant (%)</label><div style="display:flex;align-items:center;gap:12px"><input type="range" id="p-pct-c" min="0" max="60" step="5" style="flex:1;accent-color:#b38700" oninput="updatePctPreview()"><span id="p-pct-c-val" style="font-family:var(--font-h);font-size:18px;font-weight:800;color:#b38700;min-width:44px;text-align:right"></span></div></div>
+              <div class="fg"><label class="flabel">Entreprise (%)</label><div style="display:flex;align-items:center;gap:12px"><input type="range" id="p-pct-e" min="0" max="80" step="5" style="flex:1;accent-color:var(--red)" oninput="updatePctPreview()"><span id="p-pct-e-val" style="font-family:var(--font-h);font-size:18px;font-weight:800;color:var(--red);min-width:44px;text-align:right"></span></div></div>
+              <div id="p-pct-total" style="background:var(--bg);border-radius:var(--r);padding:10px 14px;margin-top:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:var(--text3)">Total</span><span id="p-pct-total-val" style="font-family:var(--font-h);font-size:16px;font-weight:800"></span></div>
+              <div style="margin-top:14px" id="p-example"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Exemple 1 000 FCFA</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><div style="text-align:center;background:var(--blue-pale);border-radius:var(--r);padding:8px"><div style="font-size:10px;color:var(--text3)">Livreur</div><div style="font-family:var(--font-h);font-size:15px;font-weight:800;color:var(--blue)" id="ex-l">—</div></div><div style="text-align:center;background:rgba(254,194,0,0.1);border-radius:var(--r);padding:8px"><div style="font-size:10px;color:var(--text3)">Carburant</div><div style="font-family:var(--font-h);font-size:15px;font-weight:800;color:#b38700" id="ex-c">—</div></div><div style="text-align:center;background:var(--red-pale);border-radius:var(--r);padding:8px"><div style="font-size:10px;color:var(--text3)">Entreprise</div><div style="font-family:var(--font-h);font-size:15px;font-weight:800;color:var(--red)" id="ex-e">—</div></div></div></div>
+              <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border2)"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:10px">Objectif CA mensuel</div><div style="display:flex;align-items:center;gap:10px"><input type="number" class="finput" id="p-objectif-ca" placeholder="Ex: 50000" min="0" style="flex:1"><span style="font-size:13px;color:var(--text3)">FCFA</span></div></div>
+              <button class="header-btn btn-primary" style="width:100%;justify-content:center;margin-top:16px" id="p-save-pct" onclick="savePourcentages()"><i class="fa-solid fa-check"></i> Enregistrer</button>
+              <div style="margin-top:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Historique</div><div id="p-pct-history" style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto"></div></div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="sc"><div class="sc-head"><span class="sc-title"><i class="fa-solid fa-motorcycle" style="color:var(--blue);margin-right:8px"></i>Livreurs</span><button class="header-btn btn-primary btn-sm" onclick="openNewLivreur()"><i class="fa-solid fa-plus"></i> Ajouter</button></div><ul class="ilist" id="p-livreurs-list"></ul></div>
+            <div class="sc"><div class="sc-head"><span class="sc-title"><i class="fa-solid fa-list" style="color:var(--blue);margin-right:8px"></i>Services</span><button class="header-btn btn-primary btn-sm" onclick="openModal('m-service')"><i class="fa-solid fa-plus"></i> Ajouter</button></div><ul class="ilist" id="p-services-list"></ul></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-footer">
+        <div class="dash-footer-left">© <span id="footer-year"></span> FaiChap — Tous droits réservés</div>
+        <div class="dash-footer-right"><i class="fa-solid fa-pen-nib" style="font-size:10px;opacity:.6"></i> Réalisé par <span>Moses GD</span></div>
+      </div>
+
+    </div></div></div><div id="toast"></div>
+
+<div class="moverlay" id="m-detail" role="dialog" aria-modal="true"><div class="modal" style="max-width:560px"><div class="mhead"><div><h3 id="detail-titre">Détail course</h3><div style="font-size:12px;color:var(--text3);margin-top:2px" id="detail-id-display"></div></div><button class="mclose" onclick="closeModal('m-detail')"><i class="fa-solid fa-xmark"></i></button></div><div class="mbody"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px"><div style="display:flex;align-items:center;gap:10px"><span id="detail-statut-badge" class="badge">—</span><span id="detail-livreur-badge" style="font-size:12px;color:var(--text2)"></span></div><div style="display:flex;gap:8px" id="detail-actions-rapides"></div></div><div class="detail-info-grid"><div class="detail-field"><div class="detail-label">Client</div><div class="detail-value" id="det-client">—</div></div><div class="detail-field"><div class="detail-label">Téléphone</div><div class="detail-value" id="det-tel">—</div></div><div class="detail-field"><div class="detail-label">Date</div><div class="detail-value" id="det-date">—</div></div><div class="detail-field"><div class="detail-label">Heure</div><div class="detail-value" id="det-heure">—</div></div><div class="detail-field"><div class="detail-label">Service</div><div class="detail-value" id="det-service">—</div></div><div class="detail-field"><div class="detail-label">Zone</div><div class="detail-value" id="det-zone">—</div></div></div><div style="background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:12px 14px;margin-bottom:14px"><div style="display:flex;align-items:flex-start;gap:12px"><div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:2px"><div style="width:10px;height:10px;border-radius:50%;background:var(--blue);flex-shrink:0"></div><div style="width:1px;height:24px;background:var(--border)"></div><div style="width:10px;height:10px;border-radius:50%;background:var(--red);flex-shrink:0"></div></div><div style="flex:1"><div style="font-size:12px;color:var(--text3);margin-bottom:2px">Départ</div><div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:10px" id="det-depart">—</div><div style="font-size:12px;color:var(--text3);margin-bottom:2px">Arrivée</div><div style="font-size:13px;font-weight:500;color:var(--text)" id="det-arrivee">—</div></div></div></div><div id="det-obs-wrap" style="display:none;margin-bottom:14px"><div class="detail-label" style="margin-bottom:6px">Observations</div><div style="background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:10px 14px;font-size:13px;color:var(--text2);font-style:italic" id="det-obs">—</div></div><div class="detail-repartition"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:10px"><i class="fa-solid fa-calculator"></i> Répartition</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px"><div style="text-align:center"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Livreur</div><div style="font-family:var(--font-h);font-size:16px;font-weight:800;color:var(--blue)" id="det-part-l">—</div><div style="font-size:10px;color:var(--text3)" id="det-pct-l">—%</div></div><div style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Carburant</div><div style="font-family:var(--font-h);font-size:16px;font-weight:800;color:#b38700" id="det-part-c">—</div><div style="font-size:10px;color:var(--text3)" id="det-pct-c">—%</div></div><div style="text-align:center"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Entreprise</div><div style="font-family:var(--font-h);font-size:16px;font-weight:800;color:var(--red)" id="det-part-e">—</div><div style="font-size:10px;color:var(--text3)" id="det-pct-e">—%</div></div></div><div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:var(--text3)">Total</span><span style="font-family:var(--font-h);font-size:17px;font-weight:800;color:var(--text)" id="det-total">—</span></div></div></div><div class="mfoot"><button class="header-btn btn-ghost" onclick="closeModal('m-detail')">Fermer</button><button class="header-btn btn-ghost" id="btn-detail-edit" onclick="editFromDetail()"><i class="fa-solid fa-pen"></i> Modifier</button></div></div></div>
+
+<div class="moverlay" id="m-edit-commande" role="dialog" aria-modal="true"><div class="modal"><div class="mhead"><h3>Modifier course</h3><button class="mclose" onclick="closeModal('m-edit-commande')"><i class="fa-solid fa-xmark"></i></button></div><div class="mbody"><input type="hidden" id="edit-id"><div class="frow"><div class="fg"><label class="flabel">Client</label><input class="finput" id="edit-client" autocomplete="off"></div><div class="fg"><label class="flabel">Téléphone</label><input class="finput" id="edit-tel" autocomplete="off"></div></div><div class="frow"><div class="fg"><label class="flabel">Service *</label><select class="fselect" id="edit-service" onchange="updateEditRepartition()"></select></div><div class="fg"><label class="flabel">Livreur *</label><select class="fselect" id="edit-livreur"></select></div></div><div class="fg"><label class="flabel">Départ *</label><input class="finput" id="edit-depart" autocomplete="off"></div><div class="fg"><label class="flabel">Arrivée *</label><input class="finput" id="edit-arrivee" autocomplete="off"></div><div class="frow"><div class="fg"><label class="flabel">Zone</label><input class="finput" id="edit-zone" autocomplete="off"></div><div class="fg"><label class="flabel">Montant *</label><input type="number" class="finput" id="edit-montant" min="0" oninput="updateEditRepartition()"></div></div><div class="frow"><div class="fg"><label class="flabel">Date</label><input type="text" class="finput finput-date" id="edit-date"></div><div class="fg"><label class="flabel">Statut</label><select class="fselect" id="edit-statut"><option value="en_cours">En cours</option><option value="livré">Livré</option><option value="annulé">Annulé</option><option value="en_attente">En attente</option></select></div></div><div class="fg"><label class="flabel">Observations</label><textarea class="ftextarea" id="edit-obs"></textarea></div><div class="repartition-preview" id="edit-repartition-preview" style="display:none"><div class="rp-title">Répartition</div><div class="rp-row"><span class="rp-label">Livreur (<span id="erp-pct-l"></span>%)</span><span class="rp-val" id="erp-val-l">—</span></div><div class="rp-row"><span class="rp-label">Carburant (<span id="erp-pct-c"></span>%)</span><span class="rp-val" id="erp-val-c">—</span></div><div class="rp-row"><span class="rp-label">Entreprise (<span id="erp-pct-e"></span>%)</span><span class="rp-val" id="erp-val-e">—</span></div></div></div><div class="mfoot"><button class="header-btn btn-ghost" onclick="closeModal('m-edit-commande')">Annuler</button><button class="header-btn btn-danger btn-sm" onclick="confirmDelete()" style="margin-right:auto"><i class="fa-solid fa-trash"></i> Supprimer</button><button class="header-btn btn-primary" onclick="updateCommande()"><i class="fa-solid fa-check"></i> Mettre à jour</button></div></div></div>
+
+<div class="moverlay" id="m-confirm-delete" role="dialog" aria-modal="true"><div class="modal" style="max-width:380px"><div class="mhead"><h3 style="color:var(--danger)"><i class="fa-solid fa-triangle-exclamation" style="margin-right:8px"></i>Confirmer</h3><button class="mclose" onclick="closeModal('m-confirm-delete')"><i class="fa-solid fa-xmark"></i></button></div><div class="mbody"><p style="font-size:14px;color:var(--text2);line-height:1.6">Action <strong style="color:var(--danger)">irréversible</strong>. Course supprimée définitivement.</p></div><div class="mfoot"><button class="header-btn btn-ghost" onclick="closeModal('m-confirm-delete')">Annuler</button><button class="header-btn btn-danger" onclick="deleteCommande()"><i class="fa-solid fa-trash"></i> Supprimer</button></div></div></div>
+
+<div class="moverlay" id="m-commande" role="dialog" aria-modal="true"><div class="modal"><div class="mhead"><h3>Nouvelle course</h3><button class="mclose" onclick="closeModal('m-commande')"><i class="fa-solid fa-xmark"></i></button></div><div class="mbody"><div class="frow"><div class="fg"><label class="flabel">Client</label><input class="finput" id="c-client" autocomplete="off"></div><div class="fg"><label class="flabel">Téléphone</label><input class="finput" id="c-tel" autocomplete="off"></div></div><div class="frow"><div class="fg"><label class="flabel">Service *</label><select class="fselect" id="c-service" onchange="updateRepartition()"></select></div><div class="fg"><label class="flabel">Livreur *</label><select class="fselect" id="c-livreur"></select></div></div><div class="fg"><label class="flabel">Départ *</label><input class="finput" id="c-depart" autocomplete="off"></div><div class="fg"><label class="flabel">Arrivée *</label><input class="finput" id="c-arrivee" autocomplete="off"></div><div class="frow"><div class="fg"><label class="flabel">Zone</label><input class="finput" id="c-zone" autocomplete="off"></div><div class="fg"><label class="flabel">Montant *</label><input type="number" class="finput" id="c-montant" min="0" oninput="updateRepartition()"></div></div><div class="frow"><div class="fg"><label class="flabel">Date</label><input type="text" class="finput finput-date" id="c-date"></div><div class="fg"><label class="flabel">Heure</label><input type="text" class="finput" id="c-heure"></div></div><div class="fg"><label class="flabel">Observations</label><textarea class="ftextarea" id="c-obs"></textarea></div><div class="repartition-preview" id="repartition-preview" style="display:none"><div class="rp-title">Répartition</div><div class="rp-row"><span class="rp-label">Livreur (<span id="rp-pct-l"></span>%)</span><span class="rp-val" id="rp-val-l">—</span></div><div class="rp-row"><span class="rp-label">Carburant (<span id="rp-pct-c"></span>%)</span><span class="rp-val" id="rp-val-c">—</span></div><div class="rp-row"><span class="rp-label">Entreprise (<span id="rp-pct-e"></span>%)</span><span class="rp-val" id="rp-val-e">—</span></div></div></div><div class="mfoot"><button class="header-btn btn-ghost" onclick="closeModal('m-commande')">Annuler</button><button class="header-btn btn-primary" onclick="saveCommande()"><i class="fa-solid fa-check"></i> Enregistrer</button></div></div></div>
+
+<div class="moverlay" id="m-depense" role="dialog" aria-modal="true"><div class="modal"><div class="mhead"><h3 id="dep-modal-titre">Nouvelle dépense</h3><button class="mclose" onclick="closeModal('m-depense')"><i class="fa-solid fa-xmark"></i></button></div><div class="mbody"><input type="hidden" id="dep-edit-id"><div class="frow"><div class="fg"><label class="flabel">Date *</label><input type="text" class="finput finput-date" id="dep-date"></div><div class="fg"><label class="flabel">Montant *</label><input type="number" class="finput" id="dep-montant" min="1"></div></div><div class="fg"><label class="flabel">Catégorie *</label><select class="fselect" id="dep-categorie"><option value="">Sélectionner...</option><option value="carburant">⛽ Carburant</option><option value="entretien_moto">🔧 Entretien moto</option><option value="reparation">🛠️ Réparation</option><option value="credit_communication">📱 Crédit comm.</option><option value="loyer">🏠 Loyer</option><option value="internet">📡 Internet</option><option value="electricite">💡 Électricité</option><option value="achat_materiel">📦 Achat mat.</option><option value="salaires">👤 Salaires</option><option value="assurance">🛡️ Assurance</option><option value="marketing">📣 Marketing</option><option value="autres">📋 Autres</option></select></div><div class="fg"><label class="flabel">Motif *</label><input class="finput" id="dep-description" autocomplete="off"></div><div class="frow"><div class="fg"><label class="flabel">Responsable</label><input class="finput" id="dep-responsable" autocomplete="off"></div><div class="fg"><label class="flabel">Prestataire</label><input class="finput" id="dep-prestataire" autocomplete="off"></div></div><div class="fg"><label class="flabel">Course associée (optionnel)</label><select class="fselect" id="dep-commande"><option value="">— Non lié</option></select></div></div><div class="mfoot"><button class="header-btn btn-ghost" onclick="closeModal('m-depense')">Annuler</button><div id="dep-del-wrap" style="display:none;margin-right:auto"><button class="header-btn btn-danger btn-sm" onclick="deleteDepense()"><i class="fa-solid fa-trash"></i></button></div><button class="header-btn btn-primary" id="dep-save-btn" onclick="saveDepense()"><i class="fa-solid fa-check"></i> Enregistrer</button></div></div></div>
+
+<div class="moverlay" id="m-livreur" role="dialog" aria-modal="true"><div class="modal" style="max-width:400px"><div class="mhead"><h3 id="m-livreur-titre">Nouveau livreur</h3><button class="mclose" onclick="closeModal('m-livreur')"><i class="fa-solid fa-xmark"></i></button></div><div class="mbody"><input type="hidden" id="lv-edit-id"><div class="frow"><div class="fg"><label class="flabel">Nom *</label><input class="finput" id="lv-nom" autocomplete="off"></div><div class="fg"><label class="flabel">Prénom</label><input class="finput" id="lv-prenom" autocomplete="off"></div></div><div class="fg"><label class="flabel">Téléphone</label><input class="finput" id="lv-tel" autocomplete="off"></div><div class="fg"><label class="flabel">Statut</label><select class="fselect" id="lv-actif"><option value="true">✅ Actif</option><option value="false">⏸ Inactif</option></select></div></div><div class="mfoot"><button class="header-btn btn-ghost" onclick="closeModal('m-livreur')">Annuler</button><div id="lv-del-wrap" style="display:none;margin-right:auto"><button class="header-btn btn-danger btn-sm" onclick="deleteLivreur()"><i class="fa-solid fa-trash"></i></button></div><button class="header-btn btn-primary" onclick="saveLivreur()"><i class="fa-solid fa-check"></i> Enregistrer</button></div></div></div>
+
+<div class="moverlay" id="m-service" role="dialog" aria-modal="true"><div class="modal" style="max-width:420px"><div class="mhead"><h3 id="m-service-titre">Nouveau service</h3><button class="mclose" onclick="closeModal('m-service')"><i class="fa-solid fa-xmark"></i></button></div><div class="mbody"><input type="hidden" id="sv-edit-id"><div class="fg"><label class="flabel">Nom *</label><input class="finput" id="sv-nom" autocomplete="off"></div><div class="fg"><label class="flabel">Description</label><input class="finput" id="sv-desc" autocomplete="off"></div><div class="fg"><label class="flabel">Prix (FCFA)</label><input type="number" class="finput" id="sv-prix" min="0"></div><div style="border-top:1px solid var(--border2);margin:14px 0;padding-top:14px"><div class="frow"><div class="fg"><label class="flabel">% Livreur</label><input type="number" class="finput" id="sv-pct-l" min="0" max="100"></div><div class="fg"><label class="flabel">% Carburant</label><input type="number" class="finput" id="sv-pct-c" min="0" max="100"></div><div class="fg"><label class="flabel">% Entreprise</label><input type="number" class="finput" id="sv-pct-e" min="0" max="100"></div></div></div><div class="fg"><label class="flabel">Statut</label><select class="fselect" id="sv-actif"><option value="true">✅ Actif</option><option value="false">⏸ Inactif</option></select></div></div><div class="mfoot"><button class="header-btn btn-ghost" onclick="closeModal('m-service')">Annuler</button><div id="sv-del-wrap" style="display:none;margin-right:auto"><button class="header-btn btn-danger btn-sm" onclick="deleteService()"><i class="fa-solid fa-trash"></i></button></div><button class="header-btn btn-primary" onclick="saveService()"><i class="fa-solid fa-check"></i> Enregistrer</button></div></div></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/dashboard/state.js"></script>
+<script src="assets/js/dashboard/ui.js"></script>
+<script src="assets/js/dashboard/init.js"></script>
+<script src="assets/js/dashboard/accueil.js"></script>
+<script src="assets/js/dashboard/commandes.js"></script>
+<script src="assets/js/dashboard/depenses.js"></script>
+<script src="assets/js/dashboard/statistiques.js"></script>
+<script src="assets/js/dashboard/clients.js"></script>
+<script src="assets/js/dashboard/rapport.js"></script>
+<script src="assets/js/dashboard/parametres.js"></script>
+<script src="assets/js/dashboard/main.js"></script>
+</body>
+</html>

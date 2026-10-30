@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FaiChap — Connexion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;600;700;800&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/css/login.css">
+</head>
+<body>
+
+<!-- Background -->
+<div class="bg">
+  <div class="bg-blob"></div>
+  <div class="bg-blob"></div>
+  <div class="bg-blob"></div>
+</div>
+
+<div class="wrapper">
+
+  <!-- ── LEFT PANEL ── -->
+  <div class="left">
+    <div class="deco-line"></div>
+
+    <div class="brand">
+      <div class="logo-wrap">
+        <!-- Logo FaiChap SVG — assets/img/logo-faichap.svg -->
+        <img src="assets/img/logo-faichap.svg" alt="FaiChap" class="logo-svg"
+          onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='flex'">
+        <!-- Fallback si le fichier SVG est absent -->
+        <div id="logo-fallback" style="display:none">
+          <svg style="height:52px;width:auto" viewBox="0 0 120 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="48" height="48" rx="12" fill="#2121a3"/>
+            <path d="M10 34 L24 10 L38 34" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="24" cy="30" r="4" fill="#fec200"/>
+            <text x="56" y="32" font-family="Epilogue, sans-serif" font-size="22" font-weight="800" fill="white">Fai<tspan fill="#c3161c">Chap</tspan></text>
+          </svg>
+        </div>
+      </div>
+      <div class="tagline">Système de gestion des livraisons</div>
+    </div>
+
+    <h1 class="hero-title">
+      Gérez vos<br>
+      courses avec<br>
+      <span class="accent">précision.</span>
+    </h1>
+    <p class="hero-sub">
+      Suivi des livraisons, répartition automatique des revenus,
+      dépenses et rapports — tout centralisé.
+    </p>
+
+    <div class="stats-row">
+      <div class="stat-item">
+        <div class="stat-num" id="stat-courses">—</div>
+        <div class="stat-label">Courses ce mois</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" id="stat-revenus">—</div>
+        <div class="stat-label">Revenus (FCFA)</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" id="stat-livreurs">2</div>
+        <div class="stat-label">Livreurs actifs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div class="right">
+    <div class="login-card">
+
+      <div class="mobile-brand">
+        <img src="assets/img/logo-faichap.svg" alt="FaiChap" style="height:34px;width:auto"
+          onerror="this.style.display='none'">
+      </div>
+
+      <div class="card-header">
+        <h2 class="card-title">Connexion</h2>
+        <p class="card-sub">Accès réservé aux membres de l'équipe</p>
+      </div>
+
+      <!-- Alert erreur globale -->
+      <div class="alert error" id="alert-error">
+        Email ou mot de passe incorrect. Veuillez réessayer.
+      </div>
+
+      <form id="login-form" onsubmit="handleLogin(event)">
+
+        <!-- Email -->
+        <div class="form-group">
+          <label class="form-label" for="email">Adresse email</label>
+          <div class="input-wrap">
+            <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <input
+              type="email"
+              id="email"
+              class="form-input"
+              placeholder="votre@email.com"
+              autocomplete="email"
+              required
+            >
+          </div>
+          <div class="error-msg" id="email-error">Email invalide</div>
+        </div>
+
+        <!-- Mot de passe -->
+        <div class="form-group">
+          <label class="form-label" for="password">Mot de passe</label>
+          <div class="input-wrap">
+            <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input
+              type="password"
+              id="password"
+              class="form-input"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+            >
+            <button type="button" class="toggle-pw" onclick="togglePassword()" id="toggle-pw-btn">
+              <svg id="eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg id="eye-close" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <div class="error-msg" id="pw-error">Mot de passe requis</div>
+        </div>
+
+        <!-- Bouton connexion -->
+        <button type="submit" class="btn-login" id="btn-login">
+          <span class="btn-text">Se connecter</span>
+          <div class="spinner"></div>
+        </button>
+
+      </form>
+
+      <div class="divider">accès contrôlé</div>
+
+      <div class="access-note">
+        <strong>Accès sur invitation uniquement.</strong><br>
+        Contactez l'administrateur FaiChap<br>pour obtenir vos identifiants.
+      </div>
+
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge op">Opérateur</span>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div class="footer-note">FaiChap © 2026 — Système de gestion interne</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/login.js"></script>
+</body>
+</html>
