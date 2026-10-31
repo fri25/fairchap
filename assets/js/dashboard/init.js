@@ -11,8 +11,14 @@ async function init() {
   initFCSelects();
   initDatePickers();
   await loadProfil();
-  await Promise.all([loadParametres(), loadServices(), loadLivreurs()]);
+  if (!currentProfil?.actif) {
+    showCompteInactif();
+    return;
+  }
+  applyRoleUI();
+  await Promise.all([loadParametres(), loadServices(), loadLivreurs(), loadSuggestions()]);
   initUI();
+  initCommandeForms();
   renderDashboard();
 }
 
@@ -21,98 +27,87 @@ async function loadProfil() {
     .from('profils')
     .select('*')
     .eq('id', currentUser.id)
-    .single();
-  if (data) {
-    currentProfil = data;
-    const initiales = (data.nom || 'U').slice(0, 2).toUpperCase();
-    document.getElementById('user-avatar').textContent = initiales;
-    document.getElementById('user-name').textContent = (data.prenom ? data.prenom + ' ' : '') + data.nom;
-    document.getElementById('user-role').textContent = data.role === 'admin' ? 'Administrateur' : 'Opérateur';
-    if (data.role !== 'admin') {
-      document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-    }
-  }
+    .maybeSingle();
+  if (!data) return;
+  currentProfil = data;
+  isAdmin = data.role === 'admin' && data.actif;
+  document.getElementById('user-avatar').textContent = (data.nom || 'U').slice(0, 2).toUpperCase();
+  document.getElementById('user-name').textContent = (data.prenom ? data.prenom + ' ' : '') + data.nom;
+  document.getElementById('user-role').textContent = isAdmin ? 'Administrateur' : 'Opérateur';
+}
+
+// Affiche/masque les blocs selon le rôle. L'interface n'est qu'un confort :
+// la protection réelle est le RLS (un opérateur ne reçoit pas les données).
+function applyRoleUI() {
+  document.body.classList.toggle('role-admin', isAdmin);
+  document.body.classList.toggle('role-operateur', !isAdmin);
+  document.querySelectorAll('.admin-only').forEach(el => { el.hidden = !isAdmin; });
+  document.querySelectorAll('.operator-only').forEach(el => { el.hidden = isAdmin; });
+}
+
+// Compte sans profil ou désactivé : le RLS ne lui renvoie rien, autant le dire
+function showCompteInactif() {
+  document.getElementById('user-name').textContent = currentUser.email || 'Compte';
+  document.getElementById('user-role').textContent = 'Non activé';
+  document.querySelectorAll('.sb-nav, #header-cta').forEach(el => { el.hidden = true; });
+  document.getElementById('main').innerHTML = `
+    <div class="empty" style="padding:80px 20px">
+      <i class="fa-solid fa-user-lock"></i>
+      <p style="font-size:15px;font-weight:600;color:var(--text)">Compte en attente d'activation</p>
+      <p>Votre accès n'a pas encore été activé. Contactez l'administrateur FaiChap.</p>
+      <div class="empty-action"><button class="header-btn btn-ghost" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Se déconnecter</button></div>
+    </div>`;
 }
 
 async function loadParametres() {
-  const { data } = await sb.from('parametres').select('*').eq('id', 1).single();
+  const { data } = await sb.from('parametres').select('*').eq('id', 1).maybeSingle();
   if (data) parametres = data;
 }
 
 async function loadServices() {
-  const { data } = await sb.from('services').select('*').eq('actif', true).order('nom_service');
-  if (data) {
-    services = data;
-    const sel = document.getElementById('c-service');
-    sel.innerHTML = '<option value="">Sélectionner...</option>' +
-      data.map(s => `<option value="${s.id}" data-prix="${s.prix_base}">${s.nom_service}</option>`).join('');
-    fcSync('c-service');
-  }
-}
-// ── AUTOCOMPLETE CLIENT ──
-let clientsCache = [];
-
-async function loadClientsCache() {
-  const { data } = await sb.from('commandes')
-    .select('nom_client, telephone_client')
-    .not('nom_client', 'is', null)
-    .neq('nom_client', 'Client inconnu')
-    .order('created_at', { ascending: false });
-
-  const seen = {};
-  (data || []).forEach(c => {
-    const key = c.telephone_client || c.nom_client;
-    if (!seen[key]) seen[key] = { nom: c.nom_client, tel: c.telephone_client };
-  });
-  clientsCache = Object.values(seen);
-}
-
-function attachClientAutocomplete(inputId, telId) {
-  const input = document.getElementById(inputId);
-  const telInput = document.getElementById(telId);
-  if (!input) return;
-
-  let box = document.createElement('div');
-  box.className = 'client-suggest';
-  box.style.display = 'none';
-  input.parentNode.appendChild(box);
-
-  input.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
-    if (q.length < 2) { box.style.display = 'none'; return; }
-    const matches = clientsCache.filter(c =>
-      c.nom.toLowerCase().includes(q)
-    ).slice(0, 6);
-    if (!matches.length) { box.style.display = 'none'; return; }
-    box.innerHTML = matches.map(c => `
-      <div class="client-suggest-item" data-nom="${c.nom}" data-tel="${c.tel || ''}">
-        <div>${c.nom}</div>
-        ${c.tel ? `<div class="suggest-tel">${c.tel}</div>` : ''}
-      </div>`).join('');
-    box.style.display = 'block';
-    box.querySelectorAll('.client-suggest-item').forEach(item => {
-      item.addEventListener('click', () => {
-        input.value = item.dataset.nom;
-        if (telInput && item.dataset.tel) telInput.value = item.dataset.tel;
-        box.style.display = 'none';
-      });
-    });
-  });
-
-  document.addEventListener('click', e => {
-    if (!input.parentNode.contains(e.target)) box.style.display = 'none';
+  const { data } = await sb.from('services').select('*').order('nom_service');
+  if (!data) return;
+  allServices = data;
+  services = data.filter(s => s.actif);
+  servicesMap = Object.fromEntries(data.map(s => [s.id, s.nom_service]));
+  const opts = '<option value="">Sélectionner...</option>' +
+    services.map(s => `<option value="${esc(s.id)}" data-prix="${esc(s.prix_base)}">${esc(s.nom_service)}</option>`).join('');
+  ['c-service', 'edit-service'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) { sel.innerHTML = opts; fcSync(id); }
   });
 }
+
 async function loadLivreurs() {
-  
-  const { data } = await sb.from('livreurs').select('*').eq('actif', true).order('nom');
-  if (data) {
-    livreurs = data;
-    const sel = document.getElementById('c-livreur');
-    sel.innerHTML = '<option value="">Sélectionner...</option>' +
-      data.map(l => `<option value="${l.id}">${l.nom}${l.prenom ? ' ' + l.prenom : ''}</option>`).join('');
-    fcSync('c-livreur');
+  const { data } = await sb.from('livreurs').select('*').order('nom');
+  if (!data) return;
+  allLivreurs = data;
+  livreurs = data.filter(l => l.actif);
+  livreursMap = Object.fromEntries(data.map(l => [l.id, livreurLabel(l)]));
+}
+
+// Clients, lieux et zones déjà saisis (tous opérateurs confondus) pour l'autocomplétion
+async function loadSuggestions() {
+  const data = await rpc('suggestions_saisie');
+  if (data) suggestions = data;
+}
+
+// Ajoute localement les valeurs d'une course qu'on vient d'enregistrer
+function rememberSuggestions(c) {
+  const bump = (list, nom, extra = {}) => {
+    if (!nom) return;
+    const it = list.find(x => norm(x.nom) === norm(nom));
+    if (it) { it.n++; Object.assign(it, extra); } else list.push({ nom, n: 1, ...extra });
+  };
+  if (c.nom_client) {
+    const it = suggestions.clients.find(x =>
+      (c.telephone_client && x.tel === c.telephone_client) || norm(x.nom) === norm(c.nom_client));
+    if (it) { it.n++; it.nom = c.nom_client; if (c.telephone_client) it.tel = c.telephone_client; }
+    else suggestions.clients.push({ nom: c.nom_client, tel: c.telephone_client, n: 1 });
   }
+  bump(suggestions.lieux, c.adresse_depart);
+  bump(suggestions.lieux, c.adresse_arrivee);
+  bump(suggestions.zones, c.zone);
 }
 
 // ══════════════════════════════════════

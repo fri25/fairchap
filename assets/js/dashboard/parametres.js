@@ -1,27 +1,15 @@
 // ══════════════════════════════════════
-// MODULE PARAMÈTRES
+// MODULE PARAMÈTRES (admin)
+// Les écritures sont autorisées par le RLS pour les admins uniquement.
 // ══════════════════════════════════════
 
 async function initParamView() {
-  // Vérifier rôle admin
-  const isAdmin = currentProfil?.role === 'admin';
-  const note = document.getElementById('param-admin-note');
-  if (!isAdmin && note) note.style.display = 'block';
-
-  // Sliders pourcentages
   document.getElementById('p-pct-l').value = parametres.pct_livreur;
   document.getElementById('p-pct-c').value = parametres.pct_carburant;
-document.getElementById('p-pct-e').value = parametres.pct_entreprise;
-  if (parametres.objectif_ca) {
-    document.getElementById('p-objectif-ca').value = parametres.objectif_ca;
-  }
+  document.getElementById('p-pct-e').value = parametres.pct_entreprise;
+  document.getElementById('p-objectif-ca').value = parametres.objectif_ca || '';
   updatePctPreview();
-  // Livreurs
-  await refreshParamLivreurs();
-  // Services
-  await refreshParamServices();
-  // Historique
-  await loadPctHistory();
+  await Promise.all([refreshParamLivreurs(), refreshParamServices(), refreshEquipe().then(loadPctHistory)]);
 }
 
 function updatePctPreview() {
@@ -35,11 +23,10 @@ function updatePctPreview() {
   const totEl = document.getElementById('p-pct-total-val');
   totEl.textContent = total+'%';
   totEl.style.color = total===100 ? 'var(--success)' : 'var(--red)';
-  // Exemple 1000 FCFA
-  document.getElementById('ex-l').textContent = fmtFCFA(Math.round(1000*l/100));
-  document.getElementById('ex-c').textContent = fmtFCFA(Math.round(1000*c/100));
-  document.getElementById('ex-e').textContent = fmtFCFA(Math.round(1000*e/100));
-  // Activer/désactiver bouton save
+  const exL = Math.round(1000*l/100), exC = Math.round(1000*c/100);
+  document.getElementById('ex-l').textContent = fmtFCFA(exL);
+  document.getElementById('ex-c').textContent = fmtFCFA(exC);
+  document.getElementById('ex-e').textContent = fmtFCFA(1000 - exL - exC);
   const btn = document.getElementById('p-save-pct');
   if (btn) { btn.disabled = total !== 100; btn.style.opacity = total===100?'1':'0.5'; }
 }
@@ -49,34 +36,24 @@ async function savePourcentages() {
   const c = parseInt(document.getElementById('p-pct-c').value)||0;
   const e = parseInt(document.getElementById('p-pct-e').value)||0;
   if (l+c+e !== 100) { toast('Le total doit être égal à 100%', 'error'); return; }
-
   const objectifCA = parseInt(document.getElementById('p-objectif-ca')?.value) || 0;
 
-  // Enregistrer historique
-  await sb.from('historique_parametres').insert({
-    pct_livreur: parametres.pct_livreur,
-    pct_carburant: parametres.pct_carburant,
-    pct_entreprise: parametres.pct_entreprise,
-    modifie_par: currentUser?.id
-  });
+  // L'historique et updated_by sont gérés par un trigger en base
+  const { data, error } = await sb.from('parametres')
+    .update({ pct_livreur: l, pct_carburant: c, pct_entreprise: e, objectif_ca: objectifCA })
+    .eq('id', 1).select().maybeSingle();
 
-  const { error } = await sb.from('parametres').update({
-    pct_livreur: l, pct_carburant: c, pct_entreprise: e,
-    objectif_ca: objectifCA,
-    updated_at: new Date().toISOString(), updated_by: currentUser?.id
-  }).eq('id',1);
-
-  if (error) { toast('Erreur sauvegarde : ' + error.message, 'error'); return; }
-  parametres.pct_livreur = l; parametres.pct_carburant = c; parametres.pct_entreprise = e;
-  parametres.objectif_ca = objectifCA;
-  toast('Paramètres mis à jour ✓');
+  if (error || !data) { toast('Erreur sauvegarde : ' + (error?.message || 'droits insuffisants'), 'error'); return; }
+  parametres = data;
+  toast('Paramètres mis à jour ✓ (les nouvelles courses utiliseront ces %)');
   await loadPctHistory();
-  renderDashboard();
 }
+
+let equipeMap = {}; // id profil → nom (auteurs de l'historique)
 
 async function loadPctHistory() {
   const { data } = await sb.from('historique_parametres')
-    .select('*').order('modifie_at',{ascending:false}).limit(5);
+    .select('*').order('modifie_at',{ascending:false}).limit(10);
   const el = document.getElementById('p-pct-history');
   if (!el) return;
   if (!data?.length) {
@@ -84,53 +61,62 @@ async function loadPctHistory() {
     return;
   }
   el.innerHTML = data.map(h => `
-    <div style="background:var(--bg);border-radius:var(--r);padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+    <div class="hist-row" title="Valeurs en vigueur jusqu'à cette date">
       <div>
-        <span style="font-family:var(--font-h);font-size:12px;font-weight:700;color:var(--blue)">${h.pct_livreur}%</span>
-        <span style="font-size:11px;color:var(--text3);margin:0 4px">/</span>
-        <span style="font-family:var(--font-h);font-size:12px;font-weight:700;color:#b38700">${h.pct_carburant}%</span>
-        <span style="font-size:11px;color:var(--text3);margin:0 4px">/</span>
-        <span style="font-family:var(--font-h);font-size:12px;font-weight:700;color:var(--red)">${h.pct_entreprise}%</span>
+        <span class="hist-pct" style="color:var(--blue)">${esc(h.pct_livreur)}%</span><span class="hist-sep">/</span>
+        <span class="hist-pct" style="color:#b38700">${esc(h.pct_carburant)}%</span><span class="hist-sep">/</span>
+        <span class="hist-pct" style="color:var(--red)">${esc(h.pct_entreprise)}%</span>
       </div>
-      <div style="font-size:10px;color:var(--text3)">${new Date(h.modifie_at).toLocaleDateString('fr-FR')}</div>
+      <div class="hist-meta">jusqu'au ${new Date(h.modifie_at).toLocaleDateString('fr-FR')}${equipeMap[h.modifie_par] ? ' · ' + esc(equipeMap[h.modifie_par]) : ''}</div>
     </div>`).join('');
+}
+
+// Suppression impossible (élément déjà utilisé par des courses) → désactivation
+async function deleteOrDeactivate(table, id, label) {
+  const { error } = await sb.from(table).delete().eq('id', id);
+  if (!error) { toast(`${label} supprimé`); return true; }
+  if (error.code === '23503') {
+    const { error: e2 } = await sb.from(table).update({ actif: false }).eq('id', id);
+    if (e2) { toast('Erreur : ' + e2.message, 'error'); return false; }
+    toast(`${label} utilisé par des courses existantes : désactivé (historique conservé)`);
+    return true;
+  }
+  toast('Erreur : ' + error.message, 'error');
+  return false;
 }
 
 // ── Livreurs CRUD ──
 async function refreshParamLivreurs() {
-  const { data } = await sb.from('livreurs').select('*').order('nom');
-  livreurs = data||[];
+  await loadLivreurs();
   const el = document.getElementById('p-livreurs-list');
   if (!el) return;
-  if (!livreurs.length) {
+  if (!allLivreurs.length) {
     el.innerHTML = `<div class="empty" style="padding:20px"><i class="fa-solid fa-user"></i><p>Aucun livreur</p></div>`;
     return;
   }
-  el.innerHTML = livreurs.map(l => `
+  el.innerHTML = allLivreurs.map((l, i) => `
     <li class="irow">
-      <div class="iicon" style="background:var(--blue);color:#fff;font-family:var(--font-h);font-weight:700">${l.nom.slice(0,2).toUpperCase()}</div>
+      <div class="iicon livreur-avatar av-${i % 4}">${esc(l.nom.slice(0,2).toUpperCase())}</div>
       <div class="iinfo">
-        <div class="iname">${l.nom}${l.prenom?' '+l.prenom:''}</div>
-        <div class="imeta">${l.telephone||'—'}</div>
+        <div class="iname">${esc(livreurLabel(l))}</div>
+        <div class="imeta">${esc(l.telephone || '—')}</div>
       </div>
       <span class="badge ${l.actif?'badge-livré':'badge-annulé'}">${l.actif?'Actif':'Inactif'}</span>
       <div class="iacts">
-        <button class="header-btn btn-ghost btn-icon btn-sm" onclick="openEditLivreur('${l.id}')">
-          <i class="fa-solid fa-pen"></i>
-        </button>
+        <button class="header-btn btn-ghost btn-icon btn-sm" onclick="openEditLivreur('${esc(l.id)}')" title="Modifier"><i class="fa-solid fa-pen"></i></button>
       </div>
     </li>`).join('');
 }
 
 function openEditLivreur(id) {
-  const lv = livreurs.find(l=>l.id===id);
+  const lv = allLivreurs.find(l=>l.id===id);
   if (!lv) return;
   document.getElementById('m-livreur-titre').textContent = 'Modifier le livreur';
   document.getElementById('lv-edit-id').value  = id;
   document.getElementById('lv-nom').value      = lv.nom||'';
   document.getElementById('lv-prenom').value   = lv.prenom||'';
   document.getElementById('lv-tel').value      = lv.telephone||'';
-  document.getElementById('lv-actif').value    = String(lv.actif);
+  fcSet('lv-actif', String(lv.actif));
   document.getElementById('lv-del-wrap').style.display = 'block';
   openModal('m-livreur');
 }
@@ -139,9 +125,10 @@ function openNewLivreur() {
   document.getElementById('m-livreur-titre').textContent = 'Nouveau livreur';
   document.getElementById('lv-edit-id').value = '';
   ['lv-nom','lv-prenom','lv-tel'].forEach(id => document.getElementById(id).value='');
-  document.getElementById('lv-actif').value = 'true';
+  fcSet('lv-actif', 'true');
   document.getElementById('lv-del-wrap').style.display = 'none';
   openModal('m-livreur');
+  setTimeout(() => document.getElementById('lv-nom').focus(), 50);
 }
 
 async function saveLivreur() {
@@ -153,69 +140,69 @@ async function saveLivreur() {
     telephone: document.getElementById('lv-tel').value.trim()||null,
     actif: document.getElementById('lv-actif').value === 'true'
   };
-  let error;
-  if (id) { ({error}=await sb.from('livreurs').update(payload).eq('id',id)); }
-  else    { ({error}=await sb.from('livreurs').insert(payload)); }
+  const { error } = id
+    ? await sb.from('livreurs').update(payload).eq('id',id)
+    : await sb.from('livreurs').insert(payload);
   if (error) { toast('Erreur : '+error.message,'error'); return; }
   closeModal('m-livreur');
   toast(id?'Livreur mis à jour ✓':'Livreur ajouté ✓');
   await refreshParamLivreurs();
-  await loadLivreurs(); // Rafraîchir globalement
-  await loadClientsCache();
-attachClientAutocomplete('c-client', 'c-tel');
-attachClientAutocomplete('edit-client', 'edit-tel');
 }
 
 async function deleteLivreur() {
   const id = document.getElementById('lv-edit-id').value;
-  if (!id||!confirm('Supprimer ce livreur ? Les courses associées seront conservées.')) return;
-  const {error} = await sb.from('livreurs').delete().eq('id',id);
-  if (error) { toast('Erreur','error'); return; }
-  closeModal('m-livreur');
-  toast('Livreur supprimé');
-  await refreshParamLivreurs();
-  await loadLivreurs();
+  if (!id || !confirm('Supprimer ce livreur ?\n\nS\'il a déjà des courses, il sera simplement désactivé pour conserver l\'historique.')) return;
+  if (await deleteOrDeactivate('livreurs', id, 'Livreur')) {
+    closeModal('m-livreur');
+    await refreshParamLivreurs();
+  }
 }
 
 // ── Services CRUD ──
 async function refreshParamServices() {
-  const { data } = await sb.from('services').select('*').order('nom_service');
-  services = data||[];
-  servicesMap = Object.fromEntries(services.map(s=>[s.id,s.nom_service]));
+  await loadServices();
   const el = document.getElementById('p-services-list');
   if (!el) return;
-  if (!services.length) {
+  if (!allServices.length) {
     el.innerHTML = `<div class="empty" style="padding:20px"><i class="fa-solid fa-list"></i><p>Aucun service</p></div>`;
     return;
   }
-  el.innerHTML = services.map(s => `
+  el.innerHTML = allServices.map(s => `
     <li class="irow">
-      <div class="iicon"><i class="fa-solid fa-motorcycle"></i></div>
+      <div class="iicon"><span class="icon3d sm" style="--c:#2121a3"><i class="fa-solid fa-box"></i></span></div>
       <div class="iinfo">
-        <div class="iname">${s.nom_service}</div>
-        <div class="imeta">${fmtFCFA(s.prix_base)} de base${s.pct_livreur?` · Répart. spécifique`:''}</div>
+        <div class="iname">${esc(s.nom_service)}</div>
+        <div class="imeta">${fmtFCFA(s.prix_base)} de base${s.pct_livreur != null ? ` · Répart. ${esc(s.pct_livreur)}/${esc(s.pct_carburant)}/${esc(s.pct_entreprise)}` : ''}</div>
       </div>
       <span class="badge ${s.actif?'badge-livré':'badge-annulé'}">${s.actif?'Actif':'Inactif'}</span>
       <div class="iacts">
-        <button class="header-btn btn-ghost btn-icon btn-sm" onclick="openEditService('${s.id}')">
-          <i class="fa-solid fa-pen"></i>
-        </button>
+        <button class="header-btn btn-ghost btn-icon btn-sm" onclick="openEditService('${esc(s.id)}')" title="Modifier"><i class="fa-solid fa-pen"></i></button>
       </div>
     </li>`).join('');
 }
 
+function openNewService() {
+  document.getElementById('m-service-titre').textContent = 'Nouveau service';
+  document.getElementById('sv-edit-id').value = '';
+  ['sv-nom','sv-desc','sv-prix','sv-pct-l','sv-pct-c','sv-pct-e'].forEach(id => document.getElementById(id).value = '');
+  fcSet('sv-actif', 'true');
+  document.getElementById('sv-del-wrap').style.display = 'none';
+  openModal('m-service');
+  setTimeout(() => document.getElementById('sv-nom').focus(), 50);
+}
+
 function openEditService(id) {
-  const sv = services.find(s=>s.id===id);
+  const sv = allServices.find(s=>s.id===id);
   if (!sv) return;
   document.getElementById('m-service-titre').textContent = 'Modifier le service';
   document.getElementById('sv-edit-id').value  = id;
   document.getElementById('sv-nom').value      = sv.nom_service||'';
   document.getElementById('sv-desc').value     = sv.description||'';
-  document.getElementById('sv-prix').value     = sv.prix_base||0;
-  document.getElementById('sv-pct-l').value    = sv.pct_livreur||'';
-  document.getElementById('sv-pct-c').value    = sv.pct_carburant||'';
-  document.getElementById('sv-pct-e').value    = sv.pct_entreprise||'';
-  document.getElementById('sv-actif').value    = String(sv.actif);
+  document.getElementById('sv-prix').value     = sv.prix_base ?? 0;
+  document.getElementById('sv-pct-l').value    = sv.pct_livreur ?? '';
+  document.getElementById('sv-pct-c').value    = sv.pct_carburant ?? '';
+  document.getElementById('sv-pct-e').value    = sv.pct_entreprise ?? '';
+  fcSet('sv-actif', String(sv.actif));
   document.getElementById('sv-del-wrap').style.display = 'block';
   openModal('m-service');
 }
@@ -224,38 +211,73 @@ async function saveService() {
   const nom = document.getElementById('sv-nom').value.trim();
   if (!nom) { toast('Nom requis','error'); return; }
   const id = document.getElementById('sv-edit-id').value;
-  const pL = document.getElementById('sv-pct-l').value;
-  const pC = document.getElementById('sv-pct-c').value;
-  const pE = document.getElementById('sv-pct-e').value;
-  if ((pL||pC||pE) && (parseInt(pL||0)+parseInt(pC||0)+parseInt(pE||0))!==100) {
-    toast('Les % spécifiques doivent totaliser 100%','error'); return;
+  const pcts = ['sv-pct-l','sv-pct-c','sv-pct-e'].map(k => document.getElementById(k).value.trim());
+  const remplis = pcts.filter(v => v !== '').length;
+  // Répartition spécifique : les 3 % ou aucun (même règle que la base)
+  if (remplis && (remplis < 3 || pcts.reduce((s, v) => s + Number(v), 0) !== 100)) {
+    toast('Répartition spécifique : renseignez les 3 % (total 100%) ou laissez-les vides','error'); return;
   }
   const payload = {
     nom_service: nom,
     description: document.getElementById('sv-desc').value.trim()||null,
     prix_base: parseInt(document.getElementById('sv-prix').value)||0,
-    pct_livreur:    pL ? parseInt(pL) : null,
-    pct_carburant:  pC ? parseInt(pC) : null,
-    pct_entreprise: pE ? parseInt(pE) : null,
+    pct_livreur:    remplis ? Number(pcts[0]) : null,
+    pct_carburant:  remplis ? Number(pcts[1]) : null,
+    pct_entreprise: remplis ? Number(pcts[2]) : null,
     actif: document.getElementById('sv-actif').value === 'true'
   };
-  let error;
-  if (id) { ({error}=await sb.from('services').update(payload).eq('id',id)); }
-  else    { ({error}=await sb.from('services').insert(payload)); }
-  if (error) { toast('Erreur : '+error.message,'error'); return; }
+  const { error } = id
+    ? await sb.from('services').update(payload).eq('id',id)
+    : await sb.from('services').insert(payload);
+  if (error) {
+    toast(error.code === '23505' ? 'Un service porte déjà ce nom' : 'Erreur : '+error.message,'error'); return;
+  }
   closeModal('m-service');
   toast(id?'Service mis à jour ✓':'Service ajouté ✓');
   await refreshParamServices();
-  await loadServices();
 }
 
 async function deleteService() {
   const id = document.getElementById('sv-edit-id').value;
-  if (!id||!confirm('Supprimer ce service ?')) return;
-  const {error} = await sb.from('services').delete().eq('id',id);
-  if (error) { toast('Erreur','error'); return; }
-  closeModal('m-service');
-  toast('Service supprimé');
-  await refreshParamServices();
-  await loadServices();
+  if (!id || !confirm('Supprimer ce service ?\n\nS\'il a déjà été utilisé, il sera simplement désactivé.')) return;
+  if (await deleteOrDeactivate('services', id, 'Service')) {
+    closeModal('m-service');
+    await refreshParamServices();
+  }
+}
+
+// ── Équipe : rôles et activation des comptes ──
+// Les comptes se créent par invitation (Dashboard Supabase → Authentication →
+// Invite user) ; un profil « opérateur actif » est alors créé automatiquement.
+async function refreshEquipe() {
+  const { data, error } = await sb.from('profils').select('*').order('actif', { ascending: false }).order('nom');
+  const el = document.getElementById('p-equipe-list');
+  if (!el) return;
+  if (error) { el.innerHTML = `<div class="td-muted" style="padding:16px">${esc(error.message)}</div>`; return; }
+  equipeMap = Object.fromEntries(data.map(p => [p.id, (p.prenom ? p.prenom + ' ' : '') + p.nom]));
+  el.innerHTML = data.map(p => {
+    const moi = p.id === currentUser.id;
+    return `<li class="irow ${p.actif ? '' : 'is-off'}">
+      <div class="iicon mini-avatar ${p.role === 'admin' ? '' : 'pale'}">${esc((p.nom || '?').slice(0,2).toUpperCase())}</div>
+      <div class="iinfo">
+        <div class="iname">${esc(equipeMap[p.id])}${moi ? ' <span class="td-muted">(vous)</span>' : ''}</div>
+        <div class="imeta">Depuis le ${new Date(p.created_at).toLocaleDateString('fr-FR')}</div>
+      </div>
+      <select class="mini-select" onchange="updateProfil('${esc(p.id)}', { role: this.value })" ${moi ? 'disabled title="Vous ne pouvez pas changer votre propre rôle"' : ''}>
+        <option value="operateur" ${p.role === 'operateur' ? 'selected' : ''}>Opérateur</option>
+        <option value="admin" ${p.role === 'admin' ? 'selected' : ''}>Admin</option>
+      </select>
+      <label class="switch" title="${p.actif ? 'Actif' : 'Inactif'}">
+        <input type="checkbox" ${p.actif ? 'checked' : ''} ${moi ? 'disabled' : ''} onchange="updateProfil('${esc(p.id)}', { actif: this.checked })">
+        <span></span>
+      </label>
+    </li>`;
+  }).join('');
+}
+
+async function updateProfil(id, patch) {
+  const { error } = await sb.from('profils').update(patch).eq('id', id);
+  if (error) { toast('Erreur : ' + error.message, 'error'); }
+  else toast('Accès mis à jour ✓');
+  await refreshEquipe();
 }
