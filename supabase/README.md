@@ -1,16 +1,16 @@
 # Backend Supabase — FaiChap
 
 `database/schema.sql` est le schéma **v1** (point de départ).
-Les évolutions sont dans `en-attente/` (en attendant le `supabase db pull`, voir plus bas),
-à appliquer **dans l'ordre** :
+`migrations/20261102010145_remote_schema.sql` est la photo du schéma réel de production
+(`db pull` du 2 novembre 2026). Les évolutions suivent dans `migrations/`, à appliquer **dans l'ordre** :
 
 | Fichier | Contenu |
 |---|---|
-| `…130000_alignement_schema.sql` | colonnes `objectif_ca`, `solde_reporte`, `solde_cloture` ; contrainte des % de service corrigée ; prix ≥ 0 ; `updated_at` automatique |
-| `…130100_securite_roles_rls.sql` | `est_actif()` / `est_admin()`, profil créé à l'inscription, RLS par rôle |
-| `…130200_triggers_metier.sql` | répartition (SECURITY DEFINER, somme exacte, suppression si annulée), historique des %, `cree_par` forcé |
-| `…130300_rpc.sql` | `creer_commande`, `modifier_commande`, `stats_periode`, `serie_periode`, `clients_stats` |
-| `…20261031090000_acces_operateurs.sql` | cloisonnement : chaque opérateur ne voit que ses courses et dépenses ; `suggestions_saisie` (autocomplétion) |
+| `…020000_alignement_schema.sql` | colonnes `objectif_ca`, `solde_reporte`, `solde_cloture` ; contrainte des % de service corrigée ; prix ≥ 0 ; `updated_at` automatique |
+| `…020001_securite_roles_rls.sql` | `est_actif()` / `est_admin()`, profil créé à l'inscription, RLS par rôle |
+| `…020002_triggers_metier.sql` | répartition (SECURITY DEFINER, somme exacte, suppression si annulée), historique des %, `cree_par` forcé |
+| `…020003_rpc.sql` | `creer_commande`, `modifier_commande`, `stats_periode`, `serie_periode`, `clients_stats` |
+| `…020004_acces_operateurs.sql` | cloisonnement : chaque opérateur ne voit que ses courses et dépenses ; `suggestions_saisie` (autocomplétion) |
 
 Les migrations sont idempotentes : elles peuvent être rejouées sans erreur.
 
@@ -38,7 +38,7 @@ Il est recalculé à chaque appel : aucune clôture à lancer, une correction pa
 ## Appliquer en production
 
 1. **Sauvegarder** : Dashboard Supabase → *Database → Backups*, ou un export SQL.
-2. *SQL Editor* → coller et exécuter chaque fichier de `en-attente/`, dans l'ordre des noms.
+2. `npx supabase@2 db push --linked` (vérifier avant avec `--dry-run`).
 3. Vérifier qu'au moins un admin existe et l'activer si besoin :
    ```sql
    update public.profils set role = 'admin', actif = true
@@ -58,14 +58,15 @@ Il est recalculé à chaque appel : aucune clôture à lancer, une correction pa
 
 6. Mettre en ligne le nouveau front (`dashboard.html`, `assets/`).
 
-## Supabase CLI (`db pull`)
+## Supabase CLI
 
-`supabase init` est déjà fait. Une fois connecté au **bon** compte (`npx supabase@2 login`) :
+`supabase init` et `link` sont faits (`--project-ref upbeyozsglyjryqpgray`).
 
 ```bash
-npx supabase@2 link --project-ref upbeyozsglyjryqpgray
-npx supabase@2 db pull        # photo du schéma RÉEL → migrations/<date>_remote_schema.sql
+npx supabase@2 migration list --linked     # état local / production
+npx supabase@2 db push --linked --dry-run  # ce qui serait appliqué
+npx supabase@2 db push --linked            # appliquer
 ```
 
-Les fichiers de `en-attente/` seront ensuite renumérotés après ce point de départ, revérifiés
-contre le schéma réel, puis déplacés dans `migrations/` pour être appliqués par `npx supabase@2 db push`.
+Toute nouvelle évolution : `npx supabase@2 migration new <nom>`, jamais de modification directe
+dans le SQL Editor (sinon refaire un `db pull`).
