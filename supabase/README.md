@@ -11,6 +11,7 @@
 | `…020002_triggers_metier.sql` | répartition (SECURITY DEFINER, somme exacte, suppression si annulée), historique des %, `cree_par` forcé |
 | `…020003_rpc.sql` | `creer_commande`, `modifier_commande`, `stats_periode`, `serie_periode`, `clients_stats` |
 | `…020004_acces_operateurs.sql` | cloisonnement : chaque opérateur ne voit que ses courses et dépenses ; `suggestions_saisie` (autocomplétion) |
+| `…020005_ca_livreur_partage.sql` | CA d'une course à plusieurs livreurs divisé entre eux (somme des CA livreurs = CA réel) |
 
 Les migrations sont idempotentes : elles peuvent être rejouées sans erreur.
 
