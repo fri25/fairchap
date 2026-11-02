@@ -70,7 +70,7 @@ async function genererRapportPDF() {
   // Ouvrir la fenêtre tout de suite (sinon le navigateur la bloque après les appels réseau)
   const w = window.open('', '_blank');
   if (!w) { toast('Autorisez les fenêtres pop-up pour générer le rapport', 'error'); return; }
-  w.document.write('<p style="font-family:sans-serif;padding:40px;color:#5a5a8a">Génération du rapport…</p>');
+  w.document.write('<p style="font-family:sans-serif;padding:40px;color:#3d3d4a">Génération du rapport…</p>');
   toast('Génération du rapport en cours...');
 
   const needCmds = incl('commandes') || incl('observations');
@@ -132,29 +132,28 @@ function buildRapportHTML(d) {
 <head>
 <meta charset="UTF-8">
 <title>Rapport FaiChap — ${esc(p.libelle)}</title>
-<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;600;700;800&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Jost',sans-serif;font-size:13px;color:#1a1a3e;background:#fff;padding:32px;}
-h1,h2,h3{font-family:'Epilogue',sans-serif;}
-.header{display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:3px solid #2121a3;margin-bottom:24px;}
+body{font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:#15151c;background:#fff;padding:32px;}
+.header{display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:2px solid #2021a0;margin-bottom:24px;}
 .report-meta{text-align:right;}
-.report-title{font-family:'Epilogue',sans-serif;font-size:18px;font-weight:800;color:#2121a3;}
-.report-sub{font-size:12px;color:#9898b8;margin-top:3px;}
+.report-title{font-size:18px;font-weight:600;color:#15151c;}
+.report-sub{font-size:12px;color:#5f5f6e;margin-top:3px;}
 .section{margin-bottom:24px;page-break-inside:avoid;}
-.section-title{font-family:'Epilogue',sans-serif;font-size:14px;font-weight:700;color:#2121a3;border-bottom:1px solid #e8eaff;padding-bottom:7px;margin-bottom:12px;}
+.section-title{font-size:14px;font-weight:600;color:#15151c;border-bottom:1px solid #e6e6e1;padding-bottom:7px;margin-bottom:12px;}
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;}
-.kpi{background:#f4f5fb;border-radius:8px;padding:12px 14px;}
-.kpi-l{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#9898b8;margin-bottom:4px;}
-.kpi-v{font-family:'Epilogue',sans-serif;font-size:17px;font-weight:800;}
+.kpi{border:1px solid #e6e6e1;border-radius:6px;padding:12px 14px;}
+.kpi-l{font-size:11px;color:#5f5f6e;margin-bottom:4px;}
+.kpi-v{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;}
 table{width:100%;border-collapse:collapse;font-size:12px;}
-th{background:#f4f5fb;padding:8px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9898b8;border-bottom:1px solid #e8eaff;}
-td{padding:8px 12px;border-bottom:1px solid #f0f1f9;color:#1a1a3e;}
-tfoot td{font-weight:700;border-top:2px solid #e8eaff;}
-.pos{color:#0db87a;font-weight:700;}
-.neg{color:#c3161c;font-weight:700;}
-.note-box{background:#f4f5fb;border-left:3px solid #2121a3;padding:12px 16px;border-radius:0 8px 8px 0;font-size:12px;color:#5a5a8a;line-height:1.6;white-space:pre-wrap;}
-.footer{margin-top:28px;padding-top:14px;border-top:1px solid #e8eaff;display:flex;justify-content:space-between;font-size:11px;color:#9898b8;}
+th{background:#fafaf8;padding:8px 12px;text-align:left;font-size:11px;font-weight:500;color:#5f5f6e;border-bottom:1px solid #e6e6e1;}
+td{padding:8px 12px;border-bottom:1px solid #efefeb;color:#15151c;font-variant-numeric:tabular-nums;}
+tfoot td{font-weight:600;border-top:1px solid #15151c;}
+.pos{color:#1c7a4b;font-weight:600;}
+.neg{color:#b4141a;font-weight:600;}
+.note-box{border:1px solid #e6e6e1;padding:12px 16px;border-radius:6px;font-size:12px;color:#3d3d4a;line-height:1.6;white-space:pre-wrap;}
+.footer{margin-top:28px;padding-top:14px;border-top:1px solid #e6e6e1;display:flex;justify-content:space-between;font-size:11px;color:#5f5f6e;}
 @media print{body{padding:16px;}@page{margin:1cm;}}
 </style>
 </head>
@@ -171,7 +170,7 @@ ${d.inclResume ? `
 <div class="section">
   <div class="section-title">Résumé financier</div>
   <div class="kpi-row">
-    <div class="kpi"><div class="kpi-l">Livraisons</div><div class="kpi-v" style="color:#2121a3">${s.courses_livrees}</div></div>
+    <div class="kpi"><div class="kpi-l">Livraisons</div><div class="kpi-v" style="color:#2021a0">${s.courses_livrees}</div></div>
     <div class="kpi"><div class="kpi-l">Chiffre d'affaires</div><div class="kpi-v pos">${fmtFCFA(s.revenus)}</div></div>
     <div class="kpi"><div class="kpi-l">Dépenses</div><div class="kpi-v neg">${fmtFCFA(s.depenses)}</div></div>
     <div class="kpi"><div class="kpi-l">Résultat</div><div class="kpi-v ${cls(resultat)}">${fmtFCFA(resultat)}</div></div>
@@ -179,7 +178,7 @@ ${d.inclResume ? `
   <div class="kpi-row">
     <div class="kpi"><div class="kpi-l">Solde reporté</div><div class="kpi-v">${fmtFCFA(s.solde_reporte)}</div></div>
     <div class="kpi"><div class="kpi-l">Solde de clôture</div><div class="kpi-v ${cls(s.solde_cloture)}">${fmtFCFA(s.solde_cloture)}</div></div>
-    <div class="kpi"><div class="kpi-l">Part livreurs</div><div class="kpi-v" style="color:#2121a3">${fmtFCFA(s.part_livreurs)}</div></div>
+    <div class="kpi"><div class="kpi-l">Part livreurs</div><div class="kpi-v" style="color:#2021a0">${fmtFCFA(s.part_livreurs)}</div></div>
     <div class="kpi"><div class="kpi-l">Courses annulées</div><div class="kpi-v">${s.courses_annulees}</div></div>
   </div>
 </div>` : ''}
@@ -222,7 +221,7 @@ ${d.inclLivreurs && livRows.length ? `
   <table>
     <thead><tr><th>Livreur</th><th>Courses livrées</th><th>CA généré</th><th>Part livreur</th></tr></thead>
     <tbody>${livRows.map(l => `
-      <tr><td style="font-weight:600">${esc(l.nom)}</td><td>${l.x.courses}</td><td class="pos">${fmtFCFA(l.x.revenus)}</td><td style="color:#2121a3;font-weight:700">${fmtFCFA(l.x.part)}</td></tr>`).join('')}
+      <tr><td style="font-weight:600">${esc(l.nom)}</td><td>${l.x.courses}</td><td class="pos">${fmtFCFA(l.x.revenus)}</td><td style="color:#2021a0;font-weight:700">${fmtFCFA(l.x.part)}</td></tr>`).join('')}
     </tbody>
   </table>
 </div>` : ''}
@@ -247,7 +246,7 @@ ${d.inclCommandes && livrees.length ? `
 ${d.inclObs && observations ? `
 <div class="section">
   <div class="section-title">Observations</div>
-  <ul style="padding-left:16px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:#5a5a8a;line-height:1.6">${observations}</ul>
+  <ul style="padding-left:16px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:#3d3d4a;line-height:1.6">${observations}</ul>
 </div>` : ''}
 
 ${note ? `

@@ -67,8 +67,6 @@ async function loadStats() {
   const libPeriode = statPeriod === 'mois' ? `${MONTHS_FR[mois - 1]} ${annee}` : `Année ${annee}`;
   const kpi = (icon, color, label, value, sub, valueClass = '') => `
     <div class="kpi-card">
-      <div class="kpi-card-accent ${color}"></div>
-      <div class="kpi-icon ${color}"><i class="fa-solid ${icon}"></i></div>
       <div class="kpi-label">${label}</div>
       <div class="kpi-value ${valueClass}">${value}</div>
       <div class="kpi-sub">${sub}</div>
@@ -105,7 +103,7 @@ async function loadStats() {
   _buildServicesTable(s);
 }
 
-const STAT_PAL = ['#2121a3','#c3161c','#fec200','#0db87a','#3b82f6','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#84cc16','#f97316','#ec4899'];
+const STAT_PAL = ['#2021a0','#e07b00','#1c7a4b','#b4141a','#7a7ae0','#3d3d4a','#0f8a9a','#a35bc4','#c9a227','#8a8a96','#d9628a','#5c9e3c'];
 
 function _buildStatPie(id, existing, labels, vals, colors, setter) {
   const ctx = document.getElementById(id)?.getContext('2d');
@@ -113,16 +111,16 @@ function _buildStatPie(id, existing, labels, vals, colors, setter) {
   if (existing) existing.destroy();
   if (!vals.length) {
     ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
-    ctx.fillStyle='#9898b8';ctx.font='12px Jost';ctx.textAlign='center';
+    ctx.fillStyle='#5f5f6e';ctx.font='12px "IBM Plex Sans"';ctx.textAlign='center';
     ctx.fillText('Aucune donnée',ctx.canvas.width/2,ctx.canvas.height/2);
     setter(null); return;
   }
   setter(new Chart(ctx,{
     type:'doughnut',
-    data:{labels,datasets:[{data:vals,backgroundColor:colors || STAT_PAL.slice(0,vals.length),borderWidth:0,hoverOffset:6}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+    data:{labels,datasets:[{data:vals,backgroundColor:colors || STAT_PAL.slice(0,vals.length),borderWidth:0,hoverOffset:4}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
       plugins:{
-        legend:{position:'right',labels:{color:'#5a5a8a',font:{size:10,family:'Jost'},boxWidth:10,padding:7}},
+        legend:{position:'right',labels:{color:'#3d3d4a',font:{size:10,family:'IBM Plex Sans'},boxWidth:10,padding:7}},
         tooltip:{callbacks:{label:c=>`${c.label}: ${fmtFCFA(c.parsed)}`}}
       }}
   }));
@@ -151,16 +149,16 @@ function _buildEvolChart(d, annee, mois) {
 
   chartStatEvol = new Chart(ctx,{
     data:{labels,datasets:[
-      {type:'bar',label:'Revenus',data:revs,backgroundColor:'rgba(33,33,163,0.85)',borderRadius:5,order:2},
-      {type:'bar',label:'Dépenses',data:deps,backgroundColor:'rgba(195,22,28,0.55)',borderRadius:5,order:3},
-      {type:'line',label:'Caisse (solde cumulé)',data:caisses,borderColor:'#0db87a',backgroundColor:'rgba(13,184,122,0.08)',fill:true,tension:.35,pointRadius:parMois?4:2,pointBackgroundColor:'#0db87a',order:1}
+      {type:'bar',label:'Revenus',data:revs,backgroundColor:'#2021a0',borderRadius:2,order:2},
+      {type:'bar',label:'Dépenses',data:deps,backgroundColor:'rgba(180,20,26,0.45)',borderRadius:2,order:3},
+      {type:'line',label:'Caisse (solde cumulé)',data:caisses,borderColor:'#1c7a4b',backgroundColor:'rgba(28,122,75,0.06)',fill:true,tension:.35,pointRadius:parMois?4:2,pointBackgroundColor:'#1c7a4b',order:1}
     ]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{labels:{color:'#5a5a8a',font:{size:11,family:'Jost'}}},
+      plugins:{legend:{labels:{color:'#3d3d4a',font:{size:11,family:'IBM Plex Sans'}}},
         tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmtFCFA(c.parsed.y)}`}}},
       scales:{
-        x:{ticks:{color:'#9898b8',font:{family:'Jost',size:11}},grid:{display:false}},
-        y:{ticks:{color:'#9898b8',font:{family:'Jost',size:10},callback:fmtK},grid:{color:'rgba(33,33,163,0.05)'}}
+        x:{ticks:{color:'#5f5f6e',font:{family:'IBM Plex Sans',size:11}},grid:{display:false}},
+        y:{ticks:{color:'#5f5f6e',font:{family:'IBM Plex Sans',size:10},callback:fmtK},grid:{color:'rgba(21,21,28,0.07)'},border:{display:false}}
       }}
   });
 }

@@ -337,7 +337,7 @@ function initUI() {
   const h = now.getHours();
   const greet = h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
   const prenom = currentProfil?.prenom || currentProfil?.nom || '';
-  document.getElementById('dash-greeting').textContent = `${greet}${prenom ? ', ' + prenom : ''} 👋`;
+  document.getElementById('dash-greeting').textContent = `${greet}${prenom ? ', ' + prenom : ''}`;
 
   // Navigation
   document.querySelectorAll('[data-view]').forEach(el => {
@@ -354,7 +354,7 @@ function initUI() {
 // NAVIGATION
 // ══════════════════════════════════════
 const pageTitles = {
-  dashboard: 'Dashboard',
+  dashboard: 'Tableau de bord',
   commandes: 'Commandes',
   depenses: 'Dépenses',
   statistiques: 'Statistiques',

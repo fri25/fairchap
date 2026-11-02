@@ -10,14 +10,17 @@ function togglePassword() {
   const pw = document.getElementById('password');
   const open = document.getElementById('eye-open');
   const close = document.getElementById('eye-close');
+  const btn = document.getElementById('toggle-pw-btn');
   if (pw.type === 'password') {
     pw.type = 'text';
     open.style.display = 'none';
-    close.style.display = 'block';
+    close.style.display = 'inline';
+    btn.setAttribute('aria-label', 'Masquer le mot de passe');
   } else {
     pw.type = 'password';
-    open.style.display = 'block';
+    open.style.display = 'inline';
     close.style.display = 'none';
+    btn.setAttribute('aria-label', 'Afficher le mot de passe');
   }
 }
 

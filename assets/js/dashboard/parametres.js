@@ -169,7 +169,7 @@ async function refreshParamServices() {
   }
   el.innerHTML = allServices.map(s => `
     <li class="irow">
-      <div class="iicon"><span class="icon3d sm" style="--c:#2121a3"><i class="fa-solid fa-box"></i></span></div>
+      <div class="iicon"><span class="icon3d sm" style="--c:#2021a0"><i class="fa-solid fa-box"></i></span></div>
       <div class="iinfo">
         <div class="iname">${esc(s.nom_service)}</div>
         <div class="imeta">${fmtFCFA(s.prix_base)} de base${s.pct_livreur != null ? ` · Répart. ${esc(s.pct_livreur)}/${esc(s.pct_carburant)}/${esc(s.pct_entreprise)}` : ''}</div>

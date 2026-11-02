@@ -144,9 +144,9 @@ function buildChartRev(serie) {
       datasets: [{
         label: 'Revenus (FCFA)',
         data: serie.map(p => Number(p.revenus)),
-        backgroundColor: '#2121a3',
-        hoverBackgroundColor: '#3535c4',
-        borderRadius: 8,
+        backgroundColor: '#2021a0',
+        hoverBackgroundColor: '#18187a',
+        borderRadius: 2,
         borderSkipped: false
       }]
     },
@@ -154,8 +154,8 @@ function buildChartRev(serie) {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtFCFA(c.parsed.y) } } },
       scales: {
-        x: { ticks: { color: '#9898b8', font: { family: 'Jost', size: 11 } }, grid: { display: false } },
-        y: { ticks: { color: '#9898b8', font: { family: 'Jost', size: 10 }, callback: fmtK }, grid: { color: 'rgba(33,33,163,0.06)' } }
+        x: { ticks: { color: '#5f5f6e', font: { family: 'IBM Plex Sans', size: 11 } }, grid: { display: false } },
+        y: { ticks: { color: '#5f5f6e', font: { family: 'IBM Plex Sans', size: 10 }, callback: fmtK }, grid: { color: 'rgba(21,21,28,0.07)' }, border: { display: false } }
       }
     }
   });
@@ -167,7 +167,7 @@ function buildChartDep(parCategorie) {
   if (chartDep) { chartDep.destroy(); chartDep = null; }
   if (!parCategorie?.length) {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.fillStyle = '#9898b8'; ctx.font = '13px Jost'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#5f5f6e'; ctx.font = '13px "IBM Plex Sans"'; ctx.textAlign = 'center';
     ctx.fillText('Aucune dépense ce mois', ctx.canvas.width / 2, ctx.canvas.height / 2);
     return;
   }
@@ -175,12 +175,12 @@ function buildChartDep(parCategorie) {
     type: 'doughnut',
     data: {
       labels: parCategorie.map(x => catMeta(x.categorie).label),
-      datasets: [{ data: parCategorie.map(x => Number(x.montant)), backgroundColor: parCategorie.map(x => catMeta(x.categorie).color), borderWidth: 0, hoverOffset: 6 }]
+      datasets: [{ data: parCategorie.map(x => Number(x.montant)), backgroundColor: parCategorie.map(x => catMeta(x.categorie).color), borderWidth: 0, hoverOffset: 4 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '65%',
       plugins: {
-        legend: { position: 'right', labels: { color: '#5a5a8a', font: { size: 10, family: 'Jost' }, boxWidth: 10, padding: 8 } },
+        legend: { position: 'right', labels: { color: '#3d3d4a', font: { size: 10, family: 'IBM Plex Sans' }, boxWidth: 10, padding: 8 } },
         tooltip: { callbacks: { label: c => `${c.label}: ${fmtFCFA(c.parsed)}` } }
       }
     }
